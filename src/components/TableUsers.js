@@ -4,6 +4,12 @@ import { fetchAllUser } from "../services/UserService";
 import ModalAddNew from "./ModalAddNew";
 import ReactPaginate from "react-paginate";
 import ModalEditUser from "./ModalEditUser";
+import ModalConfirm from "./ModalConfirm";
+import "./TableUser.scss";
+import _, { debounce } from "lodash";
+import { CSVLink, CSVDownload } from "react-csv";
+import Papa from "papaparse";
+import { toast } from "react-toastify";
 
 const TableUsers = (props) => {
   const [listUsers, setListUsers] = useState([]);
@@ -12,14 +18,31 @@ const TableUsers = (props) => {
   const [isShowModalAddNew, setIsShowModalAddNew] = useState(false);
   const [isShowModalEdit, setIsShowModalEdit] = useState(false);
   const [dataUserEdit, setDataUserEdit] = useState({});
+  const [dataUserDelete, setDataUserDelete] = useState({});
+  const [isShowModalDelete, setIsShowModalDelete] = useState(false);
 
+  const [sortBy, setSortBy] = useState("asc"); // mặc định sắp xếp tăng dần
+  const [sortField, setSortField] = useState("id");
+
+  const [keyword, setKeyWord] = useState("");
+  const [dataExport, setDataExport] = useState([]);
   const handleClose = () => {
     setIsShowModalAddNew(false);
     setIsShowModalEdit(false);
+    setIsShowModalDelete(false);
   };
 
   const handleUpdateTable = (user) => {
     setListUsers([user, ...listUsers]);
+  };
+
+  const handleEditUserFormModal = (user) => {
+    let updatedUsers = _.cloneDeep(listUsers);
+    let index = listUsers.findIndex((item) => item.id === user.id);
+    if (index != -1) {
+      updatedUsers[index].first_name = user.first_name;
+      setListUsers(updatedUsers);
+    }
   };
   useEffect(() => {
     // call apis
@@ -43,25 +66,192 @@ const TableUsers = (props) => {
     setDataUserEdit(user);
     setIsShowModalEdit(true);
   };
+
+  const handleDeleteUser = (user) => {
+    setIsShowModalDelete(true);
+    setDataUserDelete(user);
+  };
+
+  const handleDeleteUserFromModal = (user) => {
+    let updatedUsers = _.cloneDeep(listUsers);
+
+    updatedUsers = updatedUsers.filter((item) => item.id !== user.id);
+    setListUsers(updatedUsers);
+  };
+
+  const handleSort = (sortBy, sortField) => {
+    setSortBy(sortBy);
+    setSortField(sortField);
+    let updatedUsers = _.cloneDeep(listUsers);
+    updatedUsers = _.orderBy(updatedUsers, [sortField], [sortBy]); // dùng lodash
+    setListUsers(updatedUsers);
+    // updatedUsers = updatedUsers.sort((a, b) => b[sortField] - a[sortField]);   // cách sort của js
+  };
+
+  const handleSearch = debounce((e) => {
+    let term = e.target.value;
+
+    if (term) {
+      // nếu như có
+      let cloneListUsers = _.cloneDeep(listUsers);
+      cloneListUsers = cloneListUsers.filter((item) =>
+        item.email.includes(term)
+      );
+      setListUsers(cloneListUsers);
+    } else {
+      getUsers(1);
+    }
+  }, 500);
+
+  const csvData = [
+    ["firstname", "lastname", "email"],
+    ["Ahmed", "Tomi", "ah@smthing.co.com"],
+    ["Raed", "Labes", "rl@smthing.co.com"],
+    ["Yezzi", "Min l3b", "ymin@cocococo.com"],
+  ];
+
+  const getUsersExport = (event, done) => {
+    let result = [];
+    if (listUsers && listUsers.length > 0) {
+      result.push(["id", "Email", "First name", "Last name"]);
+      listUsers.map((item, index) => {
+        let arr = [];
+        arr[0] = item.id;
+        arr[1] = item.email;
+        arr[2] = item.first_name;
+        arr[3] = item.last_name;
+        result.push(arr);
+      });
+      setDataExport(result);
+      done();
+    }
+  };
+
+  const handleImportCSV = (event) => {
+    if (event.target && event.target.files && event.target.files[0]) {
+      let file = event.target.files[0];
+
+      if (file.type !== "text/csv") {
+        toast.error("Only accept csv files...");
+        return;
+      }
+
+      // parse local csv files
+      Papa.parse(file, {
+        // header: true,
+        complete: function (results) {
+          let rawCSV = results.data;
+          if (rawCSV.length > 0) {
+            if (rawCSV[0] && rawCSV[0].length === 3) {
+              if (
+                rawCSV[0][0] !== "email" ||
+                rawCSV[0][1] !== "first_name" ||
+                rawCSV[0][2] !== "last_name"
+              ) {
+                toast.error("Wrong format header CSV file!");
+              } else {
+                let result = [];
+
+                rawCSV.map((item, index) => {
+                  if (index > 0 && item.length === 3) {
+                    let obj = {};
+                    obj.email = item[0];
+                    obj.first_name = item[1];
+                    obj.last_name = item[2];
+                    result.push(obj);
+                  }
+                });
+                setListUsers(result);
+                console.log(">>>>>>", result);
+              }
+            } else {
+              toast.error("Wrong format CSV file!");
+            }
+          } else {
+            toast.error("not found data on CSV!");
+          }
+          console.log("Finished:", results.data);
+        },
+      });
+    }
+  };
   return (
     <>
       <div className="my-3 add-new">
         <span>
           <b>List users:</b>
         </span>
-        <button
-          className="btn btn-success"
-          onClick={() => setIsShowModalAddNew(true)}
-        >
-          Add new user
-        </button>
+        <div className="group-btns">
+          <label htmlFor="test" className="btn btn-warning ">
+            <i className="fa-solid fa-file-import"></i> Import
+          </label>
+          <input
+            type="file"
+            id="test"
+            hidden
+            onChange={(event) => handleImportCSV(event)}
+          ></input>
+          <CSVLink // export data user
+            data={dataExport}
+            filename={"user.csv"}
+            className="btn btn-primary"
+            asyncOnClick={true}
+            onClick={getUsersExport}
+          >
+            <i className="fa-solid fa-file-arrow-down mx-1"></i>
+            Export
+          </CSVLink>
+          <button
+            className="btn btn-success "
+            onClick={() => setIsShowModalAddNew(true)}
+          >
+            <i className="fa-solid fa-circle-plus mx-1"></i>
+            Add new
+          </button>
+        </div>
+      </div>
+      <div className="col-4 my-3">
+        <input
+          className="form-control"
+          placeholder="Search user by email...."
+          // value={keyword}
+          onChange={(e) => handleSearch(e)}
+        ></input>
       </div>
       <Table striped bordered hover>
         <thead>
           <tr>
-            <th>ID</th>
+            <th>
+              <div className="sort-header">
+                <span>ID</span>
+                <span>
+                  <i
+                    className="fa-solid fa-arrow-down-long"
+                    onClick={() => handleSort("desc", "id")}
+                  ></i>
+                  <i
+                    className="fa-solid fa-arrow-up-long"
+                    onClick={() => handleSort("asc", "id")}
+                  ></i>
+                </span>
+              </div>
+            </th>
             <th>Email</th>
-            <th>First Name</th>
+            <th>
+              <div className="sort-header">
+                <span>First Name</span>
+                <span>
+                  <i
+                    className="fa-solid fa-arrow-down-long"
+                    onClick={() => handleSort("desc", "first_name")}
+                  ></i>
+                  <i
+                    className="fa-solid fa-arrow-up-long"
+                    onClick={() => handleSort("asc", "first_name")}
+                  ></i>
+                </span>
+              </div>
+            </th>
             <th>Last Name</th>
             <th>Actions</th>
           </tr>
@@ -83,7 +273,12 @@ const TableUsers = (props) => {
                     >
                       Edit
                     </button>
-                    <button className="btn btn-danger">Delete</button>
+                    <button
+                      className="btn btn-danger"
+                      onClick={() => handleDeleteUser(item)}
+                    >
+                      Delete
+                    </button>
                   </td>
                 </tr>
               );
@@ -117,6 +312,13 @@ const TableUsers = (props) => {
         show={isShowModalEdit}
         dataUserEdit={dataUserEdit}
         handleClose={handleClose}
+        handleEditUserFormModal={handleEditUserFormModal}
+      />
+      <ModalConfirm
+        show={isShowModalDelete}
+        handleClose={handleClose}
+        dataUserDelete={dataUserDelete}
+        handleDeleteUserFromModal={handleDeleteUserFromModal}
       />
     </>
   );

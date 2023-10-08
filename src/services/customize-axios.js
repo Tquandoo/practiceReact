@@ -7,11 +7,20 @@ const instance = axios.create({
 instance.interceptors.response.use(
   function (response) {
     // Do something before request is sent
-    return response.data;
+    return response.data ? response.data : { statusCode: response.status };
   },
   function (error) {
-    // Do something with request error
-    return Promise.reject(error);
+    let res = {};
+    if (error.response) {     // nếu có response trả về 
+      res.data = error.response.data;     // res là obj 
+      res.status = error.response.status; 
+      res.headers = error.response.headers;
+    } else if (error.request) {
+      console.log(error.request);
+    } else {
+      console.log("error", error.message);
+    }
+    return res;
   }
 );
 export default instance;

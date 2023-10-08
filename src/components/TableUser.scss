@@ -1,0 +1,22 @@
+.sort-header{
+    display: flex;
+    justify-content: space-between;
+
+    i{
+        cursor: pointer;
+        padding: 0 2px ;
+    }
+}
+.add-new{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    .group-btns{
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    i{
+        padding: 0 2px;
+    }
+}
