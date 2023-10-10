@@ -27,7 +27,7 @@ const Login = () => {
       return;
     }
     setLoadingAPI(true);
-    let res = await loginApi(email, password);
+    let res = await loginApi(email.trim(), password);
     if (res && res.token) {
       loginContext(email, res.token);
       navigate("/");
@@ -41,6 +41,11 @@ const Login = () => {
 
   const handleGoBack = () => {
     navigate("/");
+  };
+  const handlePressEnter = (e) => {
+    if (e && e.key === "Enter") {
+      handleLogin();
+    }
   };
   return (
     <div className="login-container col-12 col-sm-4">
@@ -63,6 +68,7 @@ const Login = () => {
           className="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={(e) => handlePressEnter(e)}
         ></input>
         <i
           onClick={() => setIsShowPassword(!isShowPassword)}
@@ -83,7 +89,6 @@ const Login = () => {
         <i className="fa-solid fa-chevron-left"></i>
         <span onClick={() => handleGoBack()}> &nbsp; Go back</span>
       </div>
-      s
     </div>
   );
 };

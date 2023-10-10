@@ -15,6 +15,7 @@ const PrivateRoute = (props) => {
       </>
     );
   }
+  console.log("aaaaaaaaaaab");
   return <>{props.children}</>;
 };
 export default PrivateRoute;
