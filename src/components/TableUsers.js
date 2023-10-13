@@ -23,9 +23,9 @@ const TableUsers = (props) => {
 
   const [sortBy, setSortBy] = useState("asc"); // mặc định sắp xếp tăng dần
   const [sortField, setSortField] = useState("id");
-
   const [keyword, setKeyWord] = useState("");
   const [dataExport, setDataExport] = useState([]);
+
   const handleClose = () => {
     setIsShowModalAddNew(false);
     setIsShowModalEdit(false);
